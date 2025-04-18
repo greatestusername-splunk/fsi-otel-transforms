@@ -1,0 +1,105 @@
+---
+- name: Update values.yaml and Perform Helm Upgrade
+  hosts: localhost
+  vars:
+    access_token: "{{ lookup('env', 'ACCESS_TOKEN') }}"  
+    realm: "{{ lookup('env', 'REALM') }}"  
+    cluster_name: "{{ lookup('env', 'CLUSTER_NAME') }}"  
+  tasks:
+    - name: Ensure Helm is installed
+      ansible.builtin.shell:
+        cmd: helm version
+      register: helm_version
+      failed_when: helm_version.rc != 0
+      ignore_errors: no
+
+    - name: Replace ACCESS_TOKEN placeholder in values.yaml
+      ansible.builtin.replace:
+        path: /home/splunk/values.yaml
+        regexp: 'clusterName: \${CLUSTER_NAME}'  
+        replace: "clusterName: {{ cluster_name }}"  
+
+    - name: Replace ACCESS_TOKEN placeholder in values.yaml
+      ansible.builtin.replace:
+        path: /home/splunk/values.yaml
+        regexp: 'realm: \${REALM}'  
+        replace: "realm: {{ realm }}"  
+
+    - name: Replace ACCESS_TOKEN placeholder in values.yaml
+      ansible.builtin.replace:
+        path: /home/splunk/values.yaml
+        regexp: 'accessToken: \${ACCESS_TOKEN}'  
+        replace: "accessToken: {{ access_token }}"  
+
+    - name: Upgrade Splunk OTel Collector using Helm
+      ansible.builtin.shell:
+        cmd: >
+          helm upgrade splunk-otel-collector splunk-otel-collector-chart/splunk-otel-collector
+          --values /home/splunk/values.yaml --reuse-values
+      environment:
+        KUBECONFIG: /home/splunk/.kube/config
+      register: helm_upgrade
+      failed_when: helm_upgrade.rc != 0
+      ignore_errors: no
+
+    - name: Display Helm Upgrade Output
+      ansible.builtin.debug:
+        var: helm_upgrade.stdout
+
+    - name: Fetch existing ConfigMap
+      shell: "kubectl get configmap splunk-otel-collector-otel-k8s-cluster-receiver -n default -o yaml"
+      register: configmap_data
+
+    - name: Define the insertion text
+      set_fact:
+        insertion_text: |
+          transform/fsi:
+                  error_mode: ignore
+                  metric_statements:
+                    - error_mode: propagate
+                      statements:
+                        - replace_all_patterns(resource.attributes, "value", "frontend", "available-funds-check")
+                        - replace_all_patterns(resource.attributes, "value", "cartservice", "funds-deposit")
+                        - replace_all_patterns(resource.attributes, "value", "checkoutservice", "compliance-check")
+                        - replace_all_patterns(resource.attributes, "value", "paymentservice", "wire-transfer-service")
+                        - replace_all_patterns(resource.attributes, "value", "productcatalogservice", "validation-service")
+                        - replace_all_patterns(resource.attributes, "value", "shippingservice", "credit-card-service")
+                        - replace_all_patterns(resource.attributes, "value", "emailservice", "new-account-service")
+                        - replace_all_patterns(resource.attributes, "value", "ButtercupPayments", "payment-clearing-service")
+
+    - name: Modify ConfigMap data with proper indentation
+      set_fact:
+        updated_configmap: "{{ configmap_data.stdout | regex_replace('processors:\\n(\\s+)batch:', 'processors:\\n\\1' ~ insertion_text ~ '\\n\\1batch:') }}"
+
+    - name: Insert - transform/fsi into metrics processors
+      set_fact:
+        updated_configmap: "{{ updated_configmap | regex_replace('(metrics:\\s*\\n\\s*exporters:\\n(?:[^\\n]*\\n)*?\\s*processors:\\n)', '\\1          - transform/fsi\\n') }}"
+
+    - name: Insert debug configuration into relay exporters
+      set_fact:
+        updated_configmap: "{{ updated_configmap | regex_replace('(relay:\\s*\\|\\n\\s*exporters:\\n)', '\\1      debug:\\n        verbosity: detailed\\n') }}"
+
+    - name: Insert - debug into metrics exporters
+      set_fact:
+        updated_configmap: "{{ updated_configmap | regex_replace('(metrics:\\s*\\n\\s*exporters:\\n)', '\\1          - debug\\n') }}"
+
+    - name: Save updated ConfigMap to file
+      copy:
+        content: "{{ updated_configmap }}"
+        dest: "/tmp/updated_configmap.yaml"
+
+    - name: Apply updated ConfigMap
+      shell: "kubectl apply -f /tmp/updated_configmap.yaml"
+      register: apply_result
+
+    - name: Display result
+      debug:
+        msg: "{{ apply_result.stdout }}"
+
+    - name: Rollout updated ConfigMap
+      shell: "kubectl rollout restart deployment splunk-otel-collector-k8s-cluster-receiver"
+      register: rollout_result
+
+    - name: Display result
+      debug:
+        msg: "{{ rollout_result.stdout }}"
