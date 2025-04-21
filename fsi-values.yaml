@@ -1,7 +1,7 @@
 clusterName: ${CLUSTER_NAME}
 splunkObservability:
   realm: ${REALM}
-  accessToken: ${SPLUNK_OBSERVABILITY_ACCESS_TOKEN}
+  accessToken: ${ACCESS_TOKEN}
 
 agent:
   config:
@@ -136,6 +136,7 @@ agent:
               - replace_all_patterns(resource.attributes, "value", "shippingservice", "credit-card-service")
               - replace_all_patterns(resource.attributes, "value", "productcatalogservice", "validation-service")
               - replace_all_patterns(resource.attributes, "value", "paymentservice", "wire-transfer-service")
+              - replace_all_patterns(resource.attributes, "value", "Paymentservice", "wire-transfer-service")
               - replace_all_patterns(resource.attributes, "value", "checkoutservice", "compliance-check")
               - replace_all_patterns(resource.attributes, "value", "cartservice", "funds-deposit")
               - replace_all_patterns(resource.attributes, "value", "frontend", "available-funds-check")
@@ -147,8 +148,10 @@ agent:
               - replace_pattern(log.body, "ButtercupPayments", "payment-clearing-service")
               - replace_pattern(log.body, "emailservice", "new-account-service")
               - replace_pattern(log.body, "shippingservice", "credit-card-service")
+              - replace_pattern(log.body, "ShipOrder", "ChipOrder")
               - replace_pattern(log.body, "productcatalogservice", "validation-service")
               - replace_pattern(log.body, "paymentservice", "wire-transfer-service")
+              - replace_pattern(log.body, "Paymentservice", "wire-transfer-service")
               - replace_pattern(log.body, "checkoutservice", "compliance-check")
               - replace_pattern(log.body, "cartservice", "funds-deposit")
               - replace_pattern(log.body, "frontend", "available-funds-check")
@@ -179,10 +182,6 @@ agent:
           - resource/logs
           - resource/add_environment
           - transform/logs-fsi
-          receivers:
-          - filelog
-          - fluentforward
-          - otlp
         logs/entities:
           exporters:
           - otlphttp/entities
@@ -193,8 +192,6 @@ agent:
           - resourcedetection
           - resource
           - transform/logs-fsi
-          receivers:
-          - nop
         logs/host:
           exporters:
           - splunk_hec/platform_logs
@@ -205,9 +202,6 @@ agent:
           - resource
           - resource/add_environment
           - transform/logs-fsi
-          receivers:
-          - filelog/auth_log
-          - filelog/syslog
         metrics:
           exporters:
           - signalfx
@@ -225,24 +219,6 @@ agent:
           - transform/shipping-credit
           - transform/email-newacct
           - transform/buttercup-clearedpayment
-          receivers:
-          - hostmetrics
-          - kubeletstats
-          - otlp
-          - receiver_creator
-          - signalfx
-        metrics/agent:
-          exporters:
-          - signalfx
-          processors:
-          - memory_limiter
-          - batch
-          - resource/add_agent_k8s
-          - resourcedetection
-          - resource
-          - resource/add_mode
-          receivers:
-          - prometheus/agent
         traces:
           exporters:
           - otlphttp
@@ -264,10 +240,6 @@ agent:
           - transform/shipping-credit
           - transform/email-newacct
           - transform/buttercup-clearedpayment
-          receivers:
-          - otlp
-          - jaeger
-          - zipkin
       telemetry:
         metrics:
           readers:
