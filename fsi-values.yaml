@@ -2,7 +2,6 @@ clusterName: ${CLUSTER_NAME}
 splunkObservability:
   realm: ${REALM}
   accessToken: ${ACCESS_TOKEN}
-
 agent:
   config:
     exporters:
@@ -104,7 +103,6 @@ agent:
               - replace_all_patterns(span.attributes, "value", "hipstershop.ShippingService/GetQuote", "finservices.CreditCardService/Account")
               - replace_all_patterns(span.attributes, "value", "hipstershop.ShippingService/ShipOrder", "finservices.CreditCardService/Process")
               - replace_all_patterns(span.attributes, "value", "hipstershop.CheckoutService/PlaceOrder", "finservices.ComplianceCheck/Compliance")
-              - replace_all_patterns(span.attributes, "value", "hipstershop.CheckoutService/PlaceOrder", "finservices.ComplianceCheck/Compliance")
               - replace_all_patterns(span.attributes, "value", "hipstershop.PaymentService/Charge", "finservices.WireTransferService/Transfer")
               - replace_all_patterns(span.attributes, "value", "/cart/checkout", "/funds/valid")
               - replace_all_patterns(span.attributes, "value", "hipstershop", "finservices")
@@ -118,7 +116,6 @@ agent:
               - replace_pattern(span.name, "hipstershop.CartService/EmptyCart", "finservices.FundsDepositService/Account")
               - replace_pattern(span.name, "hipstershop.ShippingService/GetQuote", "finservices.CreditCardService/Account")
               - replace_pattern(span.name, "hipstershop.ShippingService/ShipOrder", "finservices.CreditCardService/Process")
-              - replace_pattern(span.name, "hipstershop.CheckoutService/PlaceOrder", "finservices.ComplianceCheck/Compliance")
               - replace_pattern(span.name, "hipstershop.CheckoutService/PlaceOrder", "finservices.ComplianceCheck/Compliance")
               - replace_pattern(span.name, "hipstershop.PaymentService/Charge", "finservices.WireTransferService/Transfer")
               - replace_pattern(span.name, "/cart/checkout", "/funds/valid")
@@ -162,94 +159,92 @@ agent:
               - replace_pattern(log.body, "cart", "deposit")
     service:
       extensions:
-      - file_storage
-      - health_check
-      - k8s_observer
-      - zpages
+        - file_storage
+        - health_check
+        - k8s_observer
+        - zpages
       pipelines:
         logs:
           exporters:
-          - splunk_hec/o11y
-          - splunk_hec/platform_logs
-          - debug
+            - splunk_hec/o11y
+            - splunk_hec/platform_logs
+            - debug
           processors:
-          - memory_limiter
-          - k8sattributes
-          - filter/logs
-          - batch
-          - resourcedetection
-          - resource
-          - resource/logs
-          - resource/add_environment
-          - transform/logs-fsi
+            - memory_limiter
+            - k8sattributes
+            - filter/logs
+            - batch
+            - resourcedetection
+            - resource
+            - resource/logs
+            - resource/add_environment
+            - transform/logs-fsi
         logs/entities:
           exporters:
-          - otlphttp/entities
-          - debug
+            - otlphttp/entities
+            - debug
           processors:
-          - memory_limiter
-          - batch
-          - resourcedetection
-          - resource
-          - transform/logs-fsi
+            - memory_limiter
+            - batch
+            - resourcedetection
+            - resource
+            - transform/logs-fsi
         logs/host:
           exporters:
-          - splunk_hec/platform_logs
-          - debug
+            - splunk_hec/platform_logs
+            - debug
           processors:
-          - memory_limiter
-          - batch
-          - resource
-          - resource/add_environment
-          - transform/logs-fsi
+            - memory_limiter
+            - batch
+            - resource
+            - resource/add_environment
+            - transform/logs-fsi
         metrics:
           exporters:
-          - signalfx
-          #- debug
+            - signalfx
           processors:
-          - memory_limiter
-          - batch
-          - resourcedetection
-          - resource
-          - transform/frontend-available
-          - transform/cart-checkdeposit
-          - transform/checkout-compliance
-          - transform/payment-symbolcheck
-          - transform/productcatalog-validation
-          - transform/shipping-credit
-          - transform/email-newacct
-          - transform/buttercup-clearedpayment
+            - memory_limiter
+            - batch
+            - resourcedetection
+            - resource
+            - transform/frontend-available
+            - transform/cart-checkdeposit
+            - transform/checkout-compliance
+            - transform/payment-symbolcheck
+            - transform/productcatalog-validation
+            - transform/shipping-credit
+            - transform/email-newacct
+            - transform/buttercup-clearedpayment
         traces:
           exporters:
-          - otlphttp
-          - signalfx
-          #- debug
+            - otlphttp
+            - signalfx
           processors:
-          - memory_limiter
-          - k8sattributes
-          - batch
-          - resourcedetection
-          - resource
-          - resource/add_environment
-          - transform/endpoint-fix
-          - transform/frontend-available
-          - transform/cart-checkdeposit
-          - transform/checkout-compliance
-          - transform/payment-symbolcheck
-          - transform/productcatalog-validation
-          - transform/shipping-credit
-          - transform/email-newacct
-          - transform/buttercup-clearedpayment
+            - memory_limiter
+            - k8sattributes
+            - batch
+            - resourcedetection
+            - resource
+            - resource/add_environment
+            - transform/endpoint-fix
+            - transform/frontend-available
+            - transform/cart-checkdeposit
+            - transform/checkout-compliance
+            - transform/payment-symbolcheck
+            - transform/productcatalog-validation
+            - transform/shipping-credit
+            - transform/email-newacct
+            - transform/buttercup-clearedpayment
       telemetry:
         metrics:
           readers:
-          - pull:
-              exporter:
-                prometheus:
-                  host: localhost
-                  port: 8889
-                  without_scope_info: true
-                  without_type_suffix: true
-                  without_units: true
+            - pull:
+                exporter:
+                  prometheus:
+                    host: localhost
+                    port: 8889
+                    without_scope_info: true
+                    without_type_suffix: true
+                    without_units: true
         resource:
           service.name: otel-agent
